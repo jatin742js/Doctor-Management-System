@@ -17,9 +17,9 @@ export default function AddPatient() {
     status: "Active",
     history: "",
   });
-  const [createPatient] = useCreatePatientMutation();
+  const [createPatient, { isLoading }] = useCreatePatientMutation();
   // fetch doctors for select
-  const { data: doctorsData } = useGetDoctorsQuery();
+  const { data: doctorsData, isLoading: isDoctorsLoading } = useGetDoctorsQuery();
   const doctors = doctorsData?.doctors || doctorsData || [];
 
   const handleChange = (e) => {
@@ -45,42 +45,86 @@ export default function AddPatient() {
   };
 
   const handleCancel = () => navigate(-1);
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-teal-100  flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 w-full">
-      <div className="w-full max-w-5xl">
-        <div className="text-center mb-8 px-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">
-            Patient Registration
-          </h1>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Complete the form below to register a new patient in the system
-          </p>
+return (
+    <div className="min-h-screen bg-slate-50/50 py-8 px-4 sm:px-6 lg:px-8 flex justify-center items-center">
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        {/* Header */}
+        <div className="border-b border-slate-100 bg-white px-6 py-5 sm:px-8 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </span>
+              <h1 className="text-xl font-bold text-slate-800">New Patient Registration</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Register a new patient profile into the electronic medical record system.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition"
+          >
+            ← Back to Patient List
+          </button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          <div className="flex flex-col md:flex-row">
-            {/* Sidebar */}
-            <div className="w-full md:w-1/3 bg-gradient-to-b from-blue-600 to-indigo-700 text-white p-6 sm:p-8">
-              <h2 className="text-lg sm:text-xl font-semibold mb-4 border-b border-blue-400 pb-2">
-                Guidelines
-              </h2>
-              <ul className="text-blue-100 text-sm space-y-3 leading-relaxed">
-                <li>🩺 Fill in all required (*) fields carefully.</li>
-                <li>📞 Ensure contact details are correct.</li>
-                <li>📋 Mention past medical history for better diagnosis.</li>
-                <li>👨‍⚕️ Assign a doctor if applicable.</li>
-                <li>💾 Review details before saving.</li>
-              </ul>
-            </div>
+        {/* Content Body */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+          
+          {/* Guidelines Sidebar */}
+          <div className="lg:col-span-4 bg-slate-50/60 p-6 sm:p-8">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-teal-700 mb-3">
+              Registration Guidelines
+            </h2>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Ensure high data accuracy to maintain seamless medical care continuity across departments.
+            </p>
+            <ul className="space-y-3.5 text-xs text-slate-600">
+              <li className="flex items-start gap-2.5">
+                <span className="text-teal-600 font-bold">•</span>
+                <span>Fields marked with <span className="text-red-500 font-medium">*</span> are required for patient intake.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="text-teal-600 font-bold">•</span>
+                <span>Double check contact numbers for SMS/appointment reminders.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="text-teal-600 font-bold">•</span>
+                <span>Log known drug allergies or pre-existing conditions in the history section.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="text-teal-600 font-bold">•</span>
+                <span>Assign primary attending physician if appointment is scheduled today.</span>
+              </li>
+            </ul>
 
-            {/* Form Section */}
-            <div className="w-full md:w-2/3 p-6 sm:p-8">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="mt-8 p-3.5 bg-teal-50/80 border border-teal-100 rounded-xl text-teal-900 text-xs">
+              <p className="font-semibold mb-0.5">Confidentiality Note</p>
+              <p className="text-teal-700 leading-normal">
+                Patient information is protected under HIPAA / healthcare privacy compliance.
+              </p>
+            </div>
+          </div>
+
+          {/* Registration Form */}
+          <div className="lg:col-span-8 p-6 sm:p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Section 1: Basic Info */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                  1. General Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Full Name */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Full Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -88,180 +132,213 @@ export default function AddPatient() {
                       name="name"
                       value={form.name}
                       onChange={handleChange}
-                      placeholder="Enter full name"
+                      placeholder="e.g. Jane Doe"
                       required
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                    />
+                  </div>
+
+                  {/* Contact Number */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Contact Phone <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="contact"
+                      value={form.contact}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        handleChange({ target: { name: "contact", value: val } });
+                      }}
+                      placeholder="10-digit mobile number"
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                    />
+                  </div>
+
+                  {/* Email (Kept state preserved) */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      placeholder="patient@example.com"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                     />
                   </div>
 
                   {/* Age */}
                   <div>
-                    <label className="block text-gray-700 font-semibold mb-2 text-sm">
-                      Patient Age
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        name="age"
-                        value={form.age}
-                        onChange={handleChange}
-                        required
-                        className="w-3/3 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm"
-                        placeholder="Age"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Contact */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Contact <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Age <span className="text-red-500">*</span>
                     </label>
                     <input
-  type="text"
-  name="contact"
-  value={form.contact}
-  onChange={(e) => {
-    let val = e.target.value;
-
-    // ❗ Sirf numbers allow
-    val = val.replace(/\D/g, "");
-
-    // ❗ Max 10 digits
-    val = val.slice(0, 10);
-
-    handleChange({
-      target: { name: "contact", value: val }
-    });
-  }}
-  placeholder="Enter contact number"
-  required
-  className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-/>
-
+                      type="text"
+                      name="age"
+                      value={form.age}
+                      onChange={handleChange}
+                      placeholder="e.g. 34"
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                    />
                   </div>
 
                   {/* Gender */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Gender
                     </label>
                     <select
                       name="gender"
                       value={form.gender}
                       onChange={handleChange}
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                     >
-                      <option value="">Select</option>
+                      <option value="">Select gender</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
 
-                  {/* Visited Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Visited Date
-                    </label>
-                    <input
-                      type="date"
-                      name="visiteddate"
-                      value={form.visiteddate}
-                      onChange={handleChange}
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
                   {/* Address */}
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Address
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Residential Address
                     </label>
                     <input
                       type="text"
                       name="address"
                       value={form.address}
                       onChange={handleChange}
-                      placeholder="Enter address"
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      placeholder="Street address, city, state"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <hr className="border-slate-100" />
+
+              {/* Section 2: Clinical Details */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
+                  2. Visit Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  
+                  {/* Visited Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Visit Date
+                    </label>
+                    <input
+                      type="date"
+                      name="visiteddate"
+                      value={form.visiteddate}
+                      onChange={handleChange}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                     />
                   </div>
 
-                  {/* Doctor */}
+                  {/* Attending Doctor */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Doctor
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Assigned Doctor
                     </label>
                     <select
                       name="doctor"
                       value={form.doctor}
                       onChange={handleChange}
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                     >
-                      <option value="">Select doctor (optional)</option>
+                      <option value="">
+                        {isDoctorsLoading ? "Loading doctors..." : "Select doctor (optional)"}
+                      </option>
                       {doctors.map((d) => (
                         <option key={d._id} value={d._id}>
-                          {d.name} {d.specialization ? `(${d.specialization})` : ""}
+                          Dr. {d.name} {d.specialization ? `— ${d.specialization}` : ""}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Status
+                  {/* Patient Status */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Account Status
                     </label>
-                    <select
-                      name="status"
-                      value={form.status}
-                      onChange={handleChange}
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
+                    <div className="flex gap-4 items-center pt-1">
+                      {["Active", "Inactive"].map((statusOption) => (
+                        <label key={statusOption} className="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="status"
+                            value={statusOption}
+                            checked={form.status === statusOption}
+                            onChange={handleChange}
+                            className="text-teal-600 focus:ring-teal-500 h-4 w-4"
+                          />
+                          {statusOption}
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Medical History */}
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Medical History
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Medical History / Notes
                     </label>
                     <textarea
                       name="history"
                       value={form.history}
                       onChange={handleChange}
-                      rows="4"
-                      placeholder="Any allergies or past conditions..."
-                      className="block w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                      rows="3"
+                      placeholder="Enter known allergies, chronic illnesses, current medications..."
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                     />
                   </div>
                 </div>
+              </div>
 
-                {/* Buttons */}
-                <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="w-full sm:w-auto px-5 py-2 border rounded-lg text-gray-700 hover:bg-gray-100 transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md"
-                  >
-                    Save Patient Record
-                  </button>
-                </div>
-              </form>
-            </div>
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="w-full sm:w-auto px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 active:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full sm:w-auto px-5 py-2 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700 active:bg-teal-800 transition shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <span>Save Patient Record</span>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
+
       </div>
     </div>
   );
-
 }

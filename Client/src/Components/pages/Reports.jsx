@@ -10,9 +10,9 @@ import {
 } from "../../store/services/reportsApi";
 import { useGetPatientsQuery } from "../../store/services/patientsApi";
 import { useGetDoctorsQuery } from "../../store/services/doctorsApi";
-  import {
-    PlusCircleIcon,
-    MagnifyingGlassIcon,
+ import {
+  PlusCircleIcon,
+  MagnifyingGlassIcon,
   PencilSquareIcon,
   TrashIcon,
   DocumentTextIcon,
@@ -20,8 +20,12 @@ import { useGetDoctorsQuery } from "../../store/services/doctorsApi";
   EyeIcon,
   BriefcaseIcon,
   UserCircleIcon,
-  // ArrowUpTrayIcon,
   XMarkIcon,
+  FolderIcon,
+  CalendarDaysIcon,
+  UserIcon,
+  AcademicCapIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Reports() {
@@ -29,9 +33,9 @@ export default function Reports() {
   // RTK Query hooks
   // const [triggerPresignedUrl] = useLazyGetPresignedUrlQuery();
   const { data: reports = [], isLoading, refetch } = useGetReportsQuery();
-  const [createReport] = useCreateReportMutation();
-  const [updateReport] = useUpdateReportMutation();
-  const [deleteReport] = useDeleteReportMutation();
+  const [createReport, { isLoading: isCreating }] = useCreateReportMutation();
+  const [updateReport, { isLoading: isUpdating }] = useUpdateReportMutation();
+  const [deleteReport, { isLoading: isDeleting }] = useDeleteReportMutation();
   // const [uploadReportFile] = useUploadReportFileMutation();
   // For search
   const { data: doctorsData } = useGetDoctorsQuery();
@@ -274,262 +278,362 @@ export default function Reports() {
 
   // ✅ MAIN RETURN
   return (
-    <div className="min-h-screen w-full  bg-gradient-to-br from-green-50 to-teal-100  p-3 sm:p-4 md:p-6">
-      <div className="max-w-7xl mx-auto mb-6">
-        {/* Header */}
-        <div className="text-center mb-6 px-2 sm:px-0">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 leading-tight">
-            📊 Reports & Analytics
-          </h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">
-            Manage patient and clinic reports with efficiency and ease
-          </p>
+    <div className="min-h-screen bg-slate-50/50 text-slate-800 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* TOP HEADER SECTION */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 bg-teal-50 text-teal-600 rounded-xl">
+                <FolderIcon className="w-6 h-6" />
+              </span>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                Clinical Reports & Records
+              </h1>
+            </div>
+            <p className="text-slate-500 text-sm mt-1">
+              Centralized platform to manage diagnostic files and patient analytics.
+            </p>
+          </div>
+
+          <button
+            onClick={() => openFormModal()}
+            className="inline-flex items-center justify-center gap-2 bg-teal-600 text-white px-5 py-2.5 rounded-xl font-medium text-sm hover:bg-teal-700 active:bg-teal-800 transition shadow-sm hover:shadow"
+          >
+            <PlusCircleIcon className="w-5 h-5" />
+            Create New Report
+          </button>
         </div>
 
-        {/* ✅ STATISTICS */}
-        {/* ✅ STATISTICS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* NOTIFICATION MESSAGE */}
+        {message && (
+          <div className="flex items-center justify-between p-4 bg-teal-50 border border-teal-200 text-teal-800 rounded-xl text-sm font-medium animate-fade-in">
+            <span>{message}</span>
+            <button onClick={() => setMessage("")} className="text-teal-600 hover:text-teal-900">
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* METRICS CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Total Reports", value: totalReports, color: "blue", icon: <DocumentTextIcon /> },
-            { label: "Completed", value: completedReports, color: "green", icon: <CheckCircleIcon /> },
-            { label: "In Progress", value: inProgressReports, color: "yellow", icon: <BriefcaseIcon /> },
-            { label: "Unique Patients", value: uniquePatients, color: "purple", icon: <UserCircleIcon /> },
-          ].map((card, i) => (
+            {
+              label: "Total Reports",
+              value: totalReports,
+              icon: DocumentTextIcon,
+              accent: "text-blue-600 bg-blue-50 border-blue-100",
+            },
+            {
+              label: "Completed",
+              value: completedReports,
+              icon: CheckCircleIcon,
+              accent: "text-emerald-600 bg-emerald-50 border-emerald-100",
+            },
+            {
+              label: "In Progress",
+              value: inProgressReports,
+              icon: BriefcaseIcon,
+              accent: "text-amber-600 bg-amber-50 border-amber-100",
+            },
+            {
+              label: "Patients Served",
+              value: uniquePatients,
+              icon: UserCircleIcon,
+              accent: "text-indigo-600 bg-indigo-50 border-indigo-100",
+            },
+          ].map((card, idx) => (
             <div
-              key={i}
-              className={`bg-white rounded-xl p-3 sm:p-4 shadow border-l-4 border-${card.color}-500 flex items-center justify-between`}
+              key={idx}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between"
             >
               <div>
-                <p className="text-xs sm:text-sm text-gray-600">{card.label}</p>
-                <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">{card.value}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  {card.label}
+                </p>
+                <p className="text-2xl font-bold text-slate-900 mt-1">{card.value}</p>
               </div>
-              <div className={`text-${card.color}-500 w-6 h-6 sm:w-8 sm:h-8`}>{card.icon}</div>
+              <div className={`p-3 rounded-xl border ${card.accent}`}>
+                <card.icon className="w-6 h-6" />
+              </div>
             </div>
           ))}
         </div>
 
-        {/* ✅ MESSAGE BANNER */}
-        {message && (
-          <div className="mb-4 text-center text-xs sm:text-sm font-medium text-gray-700 bg-white rounded-lg p-2 shadow">
-            {message}
-          </div>
-        )}
-      </div>
-      {/* Main Table Section */}
-      <div className="max-w-7xl mx-auto bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden">
-        <div className="p-4 sm:p-6">
-          {/* Title + Search + Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3 ipad:flex-col">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <DocumentTextIcon className="w-6 h-6 text-purple-600" />
-              Reports ({reports.length})
+        {/* MAIN CONTENT AREA */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          
+          {/* SEARCH AND FILTER BAR */}
+          <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              Recent Documents
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                {filteredReports.length}
+              </span>
             </h2>
 
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto ipad:flex-row ipad:items-center ipad:justify-start">
-              <div className="relative w-full sm:w-64">
-                <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search reports..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none w-full"
-                />
-              </div>
-              <button
-                onClick={() => openFormModal()}
-                className="flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition w-full sm:w-auto"
-              >
-                <PlusCircleIcon className="w-5 h-5" />
-                New Report
-              </button>
+            <div className="relative max-w-md w-full">
+              <MagnifyingGlassIcon className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by report title, patient, or doctor..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+              />
             </div>
           </div>
 
-          {/* Responsive Table / Cards */}
-          <div className="overflow-x-auto rounded-xl shadow ring-1 ring-black ring-opacity-5 bg-white">
-            {/* Table (Desktop) */}
-            <table className="min-w-full divide-y divide-gray-300 hidden md:table text-sm sm:text-base">
-              <thead className="bg-gray-50">
-                <tr>
-                  {["Title", "Patient", "Doctor", "Date", "Type", "Status", "Actions"].map((header) => (
-                    <th
-                      key={header}
-                      className="px-4 py-3 text-left text-xs md:text-sm font-semibold text-gray-500 uppercase tracking-wide"
-                    >
-                      {header}
-                    </th>
-                  ))}
+          {/* TABLE (DESKTOP) */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 text-slate-400 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-100">
+                  <th className="py-3.5 px-6">Report Title</th>
+                  <th className="py-3.5 px-6">Patient</th>
+                  <th className="py-3.5 px-6">Assigned Doctor</th>
+                  <th className="py-3.5 px-6">Date</th>
+                  <th className="py-3.5 px-6">Category</th>
+                  <th className="py-3.5 px-6">Status</th>
+                  <th className="py-3.5 px-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredReports.length > 0 ? (
                   filteredReports.map((r) => (
-                    <tr key={r._id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3 font-medium text-gray-900">{r.title}</td>
-                      <td className="px-4 py-3 flex items-center gap-2 text-gray-800">
-                        <UserCircleIcon className="w-4 h-4 text-gray-400" />
-                        <span>{r.patient?.name || ""}</span>
+                    <tr key={r._id} className="hover:bg-slate-50/60 transition group">
+                      <td className="py-4 px-6 font-medium text-slate-900">
+                        {r.title}
                       </td>
-                      <td className="px-4 py-3 text-gray-800">{r.doctor?.name || ""}</td>
-                      <td className="px-4 py-3 text-gray-800 whitespace-nowrap">
-                        {new Date(r.date).toLocaleDateString("en-GB")}
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <UserIcon className="w-4 h-4 text-slate-400" />
+                          <span>{r.patient?.name || "—"}</span>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-800">{r.type}</td>
-                      <td className="px-4 py-3">
+                      <td className="py-4 px-6 text-slate-600">
+                        {r.doctor?.name ? (
+                          <span className="flex items-center gap-1.5">
+                            <AcademicCapIcon className="w-4 h-4 text-slate-400" />
+                            {r.doctor.name}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-slate-500 text-xs">
+                        {new Date(r.date).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">
+                          {r.type || "General"}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ring-1 ${getStatusColor(
                             r.status
                           )}`}
                         >
-                          {getStatusIcon(r.status)} <span className="ml-1">{r.status}</span>
+                          {getStatusIcon(r.status)}
+                          {r.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 flex gap-2 flex-wrap items-center">
-                        {/* <input
-                          type="file"
-                          className="hidden"
-                          id={`upload-${r._id}`}
-                          onChange={(e) => handleFileSelect(r._id, e.target.files[0])}
-                        />
-                        <label htmlFor={`upload-${r._id}`} className="cursor-pointer text-gray-600 hover:text-gray-900">
-                          <ArrowUpTrayIcon className="w-4 h-4" />
-                        </label> */}
-                        
-
-                        {/* 👇 Show View File (fetch presigned URL) */}
-                        {r.fileUrl && (
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-90 group-hover:opacity-100">
+                          {r.fileUrl && (
+                            <button
+                              onClick={() => handleViewFile(r._id)}
+                              className="p-1.5 text-teal-600 hover:bg-teal-50 rounded-lg transition"
+                              title="View Document File"
+                            >
+                              <DocumentTextIcon className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleViewFile(r._id)}
-                            className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
+                            onClick={() => setShowViewModal(r)}
+                            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                            title="View Quick Summary"
                           >
-                            <DocumentTextIcon className="w-4 h-4" /> View File
+                            <EyeIcon className="w-4 h-4" />
                           </button>
-                        )}
-
-                        <button onClick={() => setShowViewModal(r)} className="text-blue-600 hover:text-blue-900">
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openFormModal(r)} className="text-yellow-600 hover:text-yellow-900">
-                          <PencilSquareIcon className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => confirmDelete(r._id)} className="text-red-600 hover:text-red-900">
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
+                          <button
+                            onClick={() => openFormModal(r)}
+                            className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
+                            title="Edit Report"
+                          >
+                            <PencilSquareIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(r._id)}
+                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete Report"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="py-6 text-center text-gray-500 text-sm">
-                      No reports found.
+                    <td colSpan="7" className="py-12 text-center text-slate-400 text-sm">
+                      No matching clinical reports found.
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
 
-            {/* Cards (Mobile) */}
-            <div className="md:hidden divide-y divide-gray-200">
-              {filteredReports.length > 0 ? (
-                filteredReports.map((r) => (
-                  <div key={r._id} className="p-4 bg-white hover:bg-gray-50 transition">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-semibold text-gray-900 text-sm">{r.title}</h3>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(
-                          r.status
-                        )}`}
-                      >
-                        {getStatusIcon(r.status)} <span className="ml-1">{r.status}</span>
+          {/* MOBILE CARDS */}
+          <div className="lg:hidden divide-y divide-slate-100">
+            {filteredReports.length > 0 ? (
+              filteredReports.map((r) => (
+                <div key={r._id} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <h3 className="font-medium text-slate-900 text-base">{r.title}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {new Date(r.date).toLocaleDateString("en-GB")}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
+                        r.status
+                      )}`}
+                    >
+                      {getStatusIcon(r.status)}
+                      {r.status}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-slate-400 block">Patient</span>
+                      <span className="font-medium text-slate-700">
+                        {r.patient?.name || "—"}
                       </span>
                     </div>
-
-                    <div className="space-y-1 text-xs text-gray-700">
-                      <p className="flex items-center gap-1">
-                        <UserCircleIcon className="w-4 h-4 text-gray-400" /> {r.patient?.name || ""}
-                      </p>
-                      <p>
-                        <strong>Doctor:</strong> {r.doctor?.name || ""}
-                      </p>
-                      <p>
-                        <strong>Date:</strong> {new Date(r.date).toLocaleDateString("en-GB")}
-                      </p>
-                      <p>
-                        <strong>Type:</strong> {r.type}
-                      </p>
-
-                    </div>
-
-                    <div className="flex items-center gap-3 mt-3 text-sm">
-                      {/* <input
-                        type="file"
-                        className="hidden"
-                        id={`upload-mobile-${r._id}`}
-                        onChange={(e) => handleFileSelect(r._id, e.target.files[0])}
-                      />
-                      <label htmlFor={`upload-mobile-${r._id}`} className="cursor-pointer text-gray-600 hover:text-gray-900">
-                        <ArrowUpTrayIcon className="w-4 h-4" />
-                      </label>
-                      <button
-                        onClick={() => handleFileUpload(r._id)}
-                        disabled={uploading}
-                        className="text-indigo-600 hover:text-indigo-900 text-xs"
-                      >
-                        {uploading ? "..." : "Upload"}
-                      </button> */}
-                      <button onClick={() => setShowViewModal(r)} className="text-blue-600 hover:text-blue-900">
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                      {/* {r.fileUrl && (
-                        <button
-                          onClick={() => handleViewFile(r._id)}
-                          className="text-green-600 hover:text-green-800 text-xs flex items-center gap-1"
-                        >
-                          <DocumentTextIcon className="w-4 h-4" /> View
-                        </button>
-                      )} */}
-                      <button onClick={() => openFormModal(r)} className="text-yellow-600 hover:text-yellow-900">
-                        <PencilSquareIcon className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => confirmDelete(r._id)} className="text-red-600 hover:text-red-900">
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                    <div>
+                      <span className="text-slate-400 block">Doctor</span>
+                      <span className="font-medium text-slate-700">
+                        {r.doctor?.name || "—"}
+                      </span>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="p-6 text-center text-gray-500 text-sm">No reports found.</div>
-              )}
-            </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => setShowViewModal(r)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                    >
+                      <EyeIcon className="w-3.5 h-3.5" /> View
+                    </button>
+                    <button
+                      onClick={() => openFormModal(r)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition"
+                    >
+                      <PencilSquareIcon className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                      onClick={() => confirmDelete(r._id)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-slate-400 text-sm">
+                No matching reports found.
+              </div>
+            )}
           </div>
+
         </div>
       </div>
 
-
-      {/* ✅ MODALS */}
-      {/* View Modal */}
+      {/* VIEW DETAILS MODAL */}
       {showViewModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-3">
-          <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md md:max-w-lg">
-            <div className="flex justify-between mb-3 sm:mb-4">
-              <h2 className="text-lg sm:text-xl font-semibold">Report Details</h2>
-              <button onClick={() => setShowViewModal(null)}>
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="space-y-2 text-xs sm:text-sm text-gray-700">
-              <p><b>Title:</b> {showViewModal.title}</p>
-              <p><b>Patient:</b> {showViewModal.patient?.name || ""}</p>
-              <p><b>Doctor:</b> {showViewModal.doctor?.name || ""}</p>
-              <p><b>Date:</b> {new Date(showViewModal.date).toLocaleDateString("en-GB")}</p>
-              <p><b>Type:</b> {showViewModal.type}</p>
-              <p><b>Status:</b> {showViewModal.status}</p>
-            </div>
-            <div className="text-right mt-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 space-y-4 animate-scale-up">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-bold text-slate-900">Clinical Overview</h3>
               <button
                 onClick={() => setShowViewModal(null)}
-                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-xs sm:text-sm"
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1">
+                <span className="text-xs text-slate-400 uppercase font-semibold">
+                  Document Title
+                </span>
+                <p className="font-semibold text-slate-900 text-base">
+                  {showViewModal.title}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs text-slate-400 block">Patient</span>
+                  <span className="font-medium text-slate-800">
+                    {showViewModal.patient?.name || "N/A"}
+                  </span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs text-slate-400 block">Doctor</span>
+                  <span className="font-medium text-slate-800">
+                    {showViewModal.doctor?.name || "N/A"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs text-slate-400 block">Date</span>
+                  <span className="font-medium text-slate-800 text-xs">
+                    {new Date(showViewModal.date).toLocaleDateString("en-GB")}
+                  </span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs text-slate-400 block">Type</span>
+                  <span className="font-medium text-slate-800 text-xs">
+                    {showViewModal.type || "N/A"}
+                  </span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs text-slate-400 block">Status</span>
+                  <span className="font-medium text-slate-800 text-xs">
+                    {showViewModal.status}
+                  </span>
+                </div>
+              </div>
+
+              {showViewModal.description && (
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-xs text-slate-400 block">Description</span>
+                  <p className="text-slate-700 text-xs mt-1">
+                    {showViewModal.description}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowViewModal(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition"
               >
                 Close
               </button>
@@ -538,17 +642,33 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* CREATE / EDIT FORM MODAL */}
       {showAddReportModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg overflow-y-auto max-h-[90vh]">
-            <h2 className="text-xl font-bold mb-4">
-              {editingReport ? "Edit Report" : "Create New Report"}
-            </h2>
-            <form onSubmit={handleFormSubmit} className="space-y-3">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-lg font-bold text-slate-900">
+                {editingReport ? "Edit Clinical Report" : "New Diagnostic Report"}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAddReportModal(false);
+                  setEditingReport(null);
+                  setPatientSearch("");
+                  setShowPatientDropdown(false);
+                }}
+                className="text-slate-400 hover:text-slate-600 rounded-lg p-1"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="space-y-4">
               {/* Title Field */}
               <div>
-                <label className="block text-sm font-medium mb-1">Title</label>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                  Report Title *
+                </label>
                 <input
                   list="titleOptions"
                   type="text"
@@ -558,8 +678,8 @@ export default function Reports() {
                     handleFormChange(e);
                     setTitleSearch(e.target.value);
                   }}
-                  className="w-full border px-3 py-2 rounded-lg text-sm"
-                  placeholder="Enter or select title"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                  placeholder="e.g. Complete Blood Count (CBC)"
                   required
                 />
                 <datalist id="titleOptions">
@@ -569,59 +689,70 @@ export default function Reports() {
                 </datalist>
               </div>
 
-              {/* Patient Field */}
+              {/* Patient Dynamic Search */}
               <div id="patient-dropdown-container">
-                <label className="block text-sm font-medium mb-1">Patient</label>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                  Patient *
+                </label>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search patient by name or contact..."
+                    placeholder="Search patient by name or phone..."
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
                     onFocus={() => setShowPatientDropdown(true)}
-                    className="w-full border px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                   />
                   {showPatientDropdown && (
-                    <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto z-10 shadow-lg">
+                    <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto z-20 shadow-lg divide-y divide-slate-100">
                       {filteredPatients.length > 0 ? (
                         filteredPatients.map((p) => (
                           <div
                             key={p._id}
                             onClick={() => {
                               setEditFormData((prev) => ({ ...prev, patient: p._id }));
-                              setPatientSearch(`${p.name} ${p.contact ? `(${p.contact})` : ""}`);
+                              setPatientSearch(
+                                `${p.name} ${p.contact ? `(${p.contact})` : ""}`
+                              );
                               setShowPatientDropdown(false);
                             }}
-                            className="px-3 py-2 hover:bg-blue-100 cursor-pointer border-b last:border-b-0 text-sm"
+                            className="px-4 py-2.5 hover:bg-teal-50/50 cursor-pointer text-sm transition"
                           >
-                            <div className="font-medium">{p.name}</div>
-                            {p.contact && <div className="text-xs text-gray-500">{p.contact}</div>}
+                            <div className="font-medium text-slate-800">{p.name}</div>
+                            {p.contact && (
+                              <div className="text-xs text-slate-400">{p.contact}</div>
+                            )}
                           </div>
                         ))
                       ) : (
-                        <div className="px-3 py-2 text-sm text-gray-500 text-center">No patients found</div>
+                        <div className="px-4 py-3 text-xs text-slate-400 text-center">
+                          No registered patients match search
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
                 {editFormData.patient && (
-                  <div className="text-xs text-green-600 mt-1">
-                    ✓ Selected: {patients.find(p => p._id === editFormData.patient)?.name}
-                  </div>
+                  <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1 font-medium">
+                    <CheckCircleIcon className="w-3.5 h-3.5" /> Selected:{" "}
+                    {patients.find((p) => p._id === editFormData.patient)?.name}
+                  </p>
                 )}
               </div>
 
-              {/* Doctor Field */}
+              {/* Doctor Selection */}
               <div>
-                <label className="block text-sm font-medium mb-1">Doctor</label>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                  Attending Doctor *
+                </label>
                 <select
                   name="doctor"
                   value={editFormData.doctor || ""}
                   onChange={handleFormChange}
-                  className="w-full border px-3 py-2 rounded-lg text-sm"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                   required
                 >
-                  <option value="">Select doctor...</option>
+                  <option value="">Choose doctor...</option>
                   {doctors.map((doc) => (
                     <option key={doc._id} value={doc._id}>
                       {doc.name} {doc.specialization ? `(${doc.specialization})` : ""}
@@ -630,65 +761,73 @@ export default function Reports() {
                 </select>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Category Type */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    Report Type *
+                  </label>
+                  <input
+                    type="text"
+                    name="type"
+                    value={editFormData.type || ""}
+                    onChange={handleFormChange}
+                    placeholder="e.g. Bloodwork, X-Ray"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                    required
+                  />
+                </div>
 
-              {/* Type Field */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Type</label>
-                <input
-                  type="text"
-                  name="type"
-                  value={editFormData.type || ""}
-                  onChange={handleFormChange}
-                  placeholder="Enter report type"
-                  className="w-full border px-3 py-2 rounded-lg text-sm"
-                  required
-                />
+                {/* Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={editFormData.date || ""}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
+                  />
+                </div>
               </div>
 
-              {/* Description Field */}
+              {/* Status */}
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <input
-                  type="text"
-                  name="description"
-                  value={editFormData.description || ""}
-                  onChange={handleFormChange}
-                  placeholder="Enter description"
-                  className="w-full border px-3 py-2 rounded-lg text-sm"
-                  required
-                />
-              </div>
-
-              {/* Date Field */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Date</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={editFormData.date || ""}
-                  onChange={handleFormChange}
-                  required
-                  className="w-full border px-3 py-2 rounded-lg text-sm"
-                />
-              </div>
-
-              {/* Status Dropdown */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                  Status
+                </label>
                 <select
                   name="status"
                   value={editFormData.status || "In Progress"}
                   onChange={handleFormChange}
-                  className="w-full border px-3 py-2 rounded-lg text-sm"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition"
                 >
                   <option value="In Progress">In Progress</option>
                   <option value="Completed">Completed</option>
-                  {/* <option value="Pending">Pending</option> */}
                 </select>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 mt-4">
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                  Description / Notes *
+                </label>
+                <textarea
+                  name="description"
+                  rows={3}
+                  value={editFormData.description || ""}
+                  onChange={handleFormChange}
+                  placeholder="Additional context or patient recommendations..."
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition resize-none"
+                  required
+                />
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -697,16 +836,20 @@ export default function Reports() {
                     setPatientSearch("");
                     setShowPatientDropdown(false);
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  disabled={isCreating || isUpdating}
+                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-xl text-sm font-medium transition shadow-sm disabled:opacity-50"
                 >
-                  {isLoading ? "Saving..." : editingReport ? "Update" : "Create"}
+                  {isCreating || isUpdating
+                    ? "Saving..."
+                    : editingReport
+                    ? "Update Record"
+                    : "Create Record"}
                 </button>
               </div>
             </form>
@@ -714,50 +857,37 @@ export default function Reports() {
         </div>
       )}
 
-      {/* ✅ DELETE CONFIRMATION MODAL */}
+      {/* CONFIRM DELETE MODAL */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80 text-center">
-          
-            <p className="mb-4">
-              Are you sure you want to delete this report?
-            </p>
-            <div className="flex justify-center gap-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-xl border border-slate-100 space-y-4">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
+              <ExclamationTriangleIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Confirm Deletion</h3>
+              <p className="text-slate-500 text-xs mt-1">
+                Are you sure you want to remove this record? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex justify-center gap-3 pt-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                className="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-medium transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteReport}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                disabled={isDeleting}
+                className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-xl text-sm font-medium transition shadow-sm disabled:opacity-50"
               >
-                Delete
+                {isDeleting ? "Deleting..." : "Delete Record"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* ✅ iPad Specific CSS */}
-  <style>{`
-    @media (min-width: 768px) and (max-width: 1180px) {
-      .ipad\\:flex-col {
-        flex-direction: column !important;
-      }
-      .ipad\\:flex-row {
-        flex-direction: row !important;
-      }
-      .ipad\\:items-center {
-        align-items: center !important;
-      }
-      .ipad\\:justify-start {
-        justify-content: flex-start !important;
-      }
-    }
-  `}</style>
     </div>
   );
 }
-

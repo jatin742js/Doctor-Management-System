@@ -17,6 +17,12 @@ import {
   CurrencyDollarIcon,
   EyeIcon,
   PrinterIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  XCircleIcon,
+  ReceiptPercentIcon,
+  UserIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 
 /* ----------------------------- Helpers ---------------------------------- */
@@ -25,18 +31,21 @@ import {
 const formatRupees = (amount) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(amount);
 
-// Status color helper (keeps original semantics)
-const getStatusColor = (status) => {
-  if (status === "Paid") return "bg-green-100 text-green-800";
-  if (status === "Partial") return "bg-yellow-100 text-yellow-800";
-  return "bg-red-100 text-red-800"; // Pending
+// Status color helper
+const getStatusBadge = (status) => {
+  if (status === "Paid") {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200/80";
+  }
+  if (status === "Partial") {
+    return "bg-amber-50 text-amber-700 border-amber-200/80";
+  }
+  return "bg-rose-50 text-rose-700 border-rose-200/80"; // Pending
 };
 
-// Status icon helper
 const getStatusIcon = (status) => {
-  if (status === "Paid") return "✔️";
-  if (status === "Partial") return "⏳";
-  return "❌";
+  if (status === "Paid") return <CheckCircleIcon className="w-3.5 h-3.5" />;
+  if (status === "Partial") return <ClockIcon className="w-3.5 h-3.5" />;
+  return <XCircleIcon className="w-3.5 h-3.5" />;
 };
 
 /* ----------------------------- Component ------------------------------- */
@@ -286,116 +295,286 @@ const BillingPage = () => {
   const closeBillDetails = () => setSelectedBill(null);
 
   const printBill = async (bill) => {
-    try {
-      const settings = settingsData || {};
-      const servicesHtml = (bill.services || "")
-        .split(", ")
-        .map((s) => {
-          const match = s.match(/(.+?) \((\d+)x([\d.]+)\)/);
-          if (!match) return "";
-          const name = match[1];
-          const qty = match[2];
-          const price = match[3];
-          const total = (Number(qty) * Number(price)).toFixed(2);
-          return `<tr>
-                    <td style="padding:8px; border:1px solid #ddd;">${name}</td>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:center;">${qty}</td>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:right;">${Number(price).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
-                    <td style="padding:8px; border:1px solid #ddd; text-align:right;">${Number(total).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
-                  </tr>`;
-        })
-        .join("");
-      const previousPaidAmount = bill.lastPayment ? Number(bill.lastPayment.previousPaid || 0) : Number(bill.paidAmount || 0);
-      const prevPaidHtml = previousPaidAmount > 0 ? `<div><strong>Previously Paid:</strong> ${previousPaidAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>` : "";
+  try {
+    const settings = settingsData || {};
 
-      // Use backend-maintained fields: todayPaidAmount, todayPaidDate, nextDueAmount (preferred)
-      const todayPaymentHtml = (() => {
-        const todayPaid = Number(bill.todayPaidAmount || 0);
-        if (todayPaid <= 0) return "";
-        const todayDate = bill.todayPaidDate ? new Date(bill.todayPaidDate).toLocaleDateString() : "Today";
-        const nextDue = Number(bill.nextDueAmount || 0);
+    // Generate table rows for services
+    const servicesHtml = (bill.services || "")
+      .split(", ")
+      .map((s) => {
+        const match = s.match(/(.+?) \((\d+)x([\d.]+)\)/);
+        if (!match) return "";
+        const name = match[1];
+        const qty = match[2];
+        const price = match[3];
+        const total = (Number(qty) * Number(price)).toFixed(2);
         return `
-          <div><strong>Today's Payment:</strong> ${todayPaid.toLocaleString("en-IN", { style: "currency", currency: "INR" })} (${todayDate})</div>
-          <div><strong>Next Payment Due:</strong> ${nextDue.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
+          <tr>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-weight: 500; color: #1e293b;">${name}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #475569;">${qty}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569;">${Number(price).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
+            <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 600; color: #0f172a;">${Number(total).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
+          </tr>
         `;
-      })();
+      })
+      .join("");
 
-      // Fallback: payment breakdown HTML when available (legacy, shows today's payment and next due if lastPayment exists)
-      const paymentBreakdownHtml = (() => {
-        if (!bill.lastPayment) return "";
-        const today = Number(bill.lastPayment.amount || 0);
-        const paidNow = Number(bill.paidAmount || 0);
-        const totalAmount = Number(bill.amount || 0);
-        const nextDue = totalAmount - paidNow;
-        return `
-          <div><strong>Today's Payment:</strong> ${today.toLocaleString("en-IN", { style: "currency", currency: "INR" })} (${new Date(bill.lastPayment.date).toLocaleDateString()})</div>
-          <div><strong>Next Payment Due:</strong> ${nextDue.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
-        `;
-      })();
-      const content = `
-        <html>
-          <head>
-            <title>Invoice - ${bill.invoiceNumber || ""}</title>
-            <style>
-              body { font-family: Arial, Helvetica, sans-serif; color: #222; padding: 24px; }
-              .header { text-align: center; margin-bottom: 12px; }
-              .details { margin-bottom: 18px; }
-              table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-              th, td { padding: 8px; border: 1px solid #ddd; }
-              th { background: #f3f4f6; text-align: left; }
-              .total { text-align: right; font-weight: bold; margin-top: 12px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              ${settings.logo ? `<img src="${settings.logo}" alt="Logo" style="max-height:80px; margin-bottom:8px;" />` : ""}
-              <h2>${settings.clinicName || "Clinic"}</h2>
-              <div>${settings.address || ""}</div>
-              <div>
-                Contact: ${settings.phone || "N/A"} ${settings.phone && settings.email ? "|" : ""} ${settings.email ? ` Email: ${settings.email}` : ""}
+    // Payment History Calculations
+    const previousPaidAmount = bill.lastPayment
+      ? Number(bill.lastPayment.previousPaid || 0)
+      : Number(bill.paidAmount || 0);
+
+    const prevPaidHtml =
+      previousPaidAmount > 0
+        ? `<div class="info-row"><span class="label">Previously Paid:</span> <span class="val">${previousPaidAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span></div>`
+        : "";
+
+    const todayPaymentHtml = (() => {
+      const todayPaid = Number(bill.todayPaidAmount || 0);
+      if (todayPaid <= 0) return "";
+      const todayDate = bill.todayPaidDate
+        ? new Date(bill.todayPaidDate).toLocaleDateString("en-IN")
+        : "Today";
+      const nextDue = Number(bill.nextDueAmount || 0);
+      return `
+        <div class="info-row"><span class="label">Today's Payment:</span> <span class="val">${todayPaid.toLocaleString("en-IN", { style: "currency", currency: "INR" })} (${todayDate})</span></div>
+        <div class="info-row"><span class="label">Next Payment Due:</span> <span class="val">${nextDue.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span></div>
+      `;
+    })();
+
+    const paymentBreakdownHtml = (() => {
+      if (!bill.lastPayment) return "";
+      const today = Number(bill.lastPayment.amount || 0);
+      const paidNow = Number(bill.paidAmount || 0);
+      const totalAmount = Number(bill.amount || 0);
+      const nextDue = totalAmount - paidNow;
+      return `
+        <div class="info-row"><span class="label">Today's Payment:</span> <span class="val">${today.toLocaleString("en-IN", { style: "currency", currency: "INR" })} (${new Date(bill.lastPayment.date).toLocaleDateString("en-IN")})</span></div>
+        <div class="info-row"><span class="label">Next Payment Due:</span> <span class="val">${nextDue.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span></div>
+      `;
+    })();
+
+    const totalAmount = Number(bill.amount || 0);
+    const totalPaid = Number(bill.paidAmount || 0);
+    const balanceDue = totalAmount - totalPaid;
+
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Invoice - ${bill.invoiceNumber || "Receipt"}</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #334155; 
+              background: #fff;
+              padding: 32px;
+              max-width: 800px;
+              margin: 0 auto;
+              font-size: 13px;
+              line-height: 1.5;
+            }
+            .header-container {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #0d9488;
+              padding-bottom: 16px;
+              margin-bottom: 20px;
+            }
+            .clinic-info { max-width: 60%; }
+            .clinic-logo { max-height: 65px; margin-bottom: 8px; object-fit: contain; }
+            .clinic-name { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+            .clinic-details { font-size: 12px; color: #64748b; line-height: 1.4; }
+            
+            .invoice-badge { text-align: right; }
+            .invoice-title { font-size: 24px; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px; }
+            .invoice-num { font-size: 13px; font-weight: 600; color: #475569; margin-top: 2px; }
+            .invoice-date { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+            .details-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 16px;
+              background-color: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 16px;
+              margin-bottom: 24px;
+            }
+            .info-block { font-size: 12px; }
+            .info-block-title { font-size: 10px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 6px; }
+            .info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+            .info-row .label { color: #64748b; font-weight: 500; }
+            .info-row .val { color: #0f172a; font-weight: 600; }
+
+            table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+            th { 
+              background: #f1f5f9; 
+              color: #475569; 
+              font-size: 11px; 
+              text-transform: uppercase; 
+              letter-spacing: 0.5px;
+              padding: 10px 12px;
+              border-bottom: 2px solid #cbd5e1;
+            }
+            
+            .summary-section {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              gap: 20px;
+            }
+            .payment-notes {
+              flex: 1;
+              background: #f8fafc;
+              border-radius: 8px;
+              padding: 12px;
+              border-left: 3px solid #0d9488;
+              font-size: 12px;
+            }
+            .totals-card {
+              width: 280px;
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 14px;
+            }
+            .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+            .total-row.grand-total {
+              border-top: 2px dashed #cbd5e1;
+              margin-top: 8px;
+              padding-top: 8px;
+              font-size: 15px;
+              font-weight: 700;
+              color: #0f172a;
+            }
+            .total-row.balance-due {
+              color: #dc2626;
+              font-weight: 700;
+            }
+
+            .footer {
+              margin-top: 40px;
+              padding-top: 16px;
+              border-top: 1px solid #e2e8f0;
+              text-align: center;
+              font-size: 11px;
+              color: #94a3b8;
+            }
+
+            @media print {
+              body { padding: 0; }
+              @page { margin: 1.5cm; }
+            }
+          </style>
+        </head>
+        <body>
+          <!-- HEADER SECTION -->
+          <div class="header-container">
+            <div class="clinic-info">
+              ${settings.logo ? `<img src="${settings.logo}" alt="Logo" class="clinic-logo" />` : ""}
+              <div class="clinic-name">${settings.clinicName || "Healthcare Center"}</div>
+              <div class="clinic-details">
+                ${settings.address ? `${settings.address}<br/>` : ""}
+                Ph: ${settings.phone || "N/A"} ${settings.email ? ` | Email: ${settings.email}` : ""}
               </div>
             </div>
-            <div class="details">
-              <div><strong>Invoice #:</strong> ${bill.invoiceNumber || ""}</div>
-              <div><strong>Patient:</strong>   ${bill.patientName || bill.patient?.name || ""}</div>
-              <div><strong>Contact:</strong> ${bill.contact || bill.contactNumber || "N/A"}</div>
-              <div><strong>Doctor:</strong>   ${bill.doctor?.name || ""}
-                ${
-                  bill.doctor?.specialization || bill.doctor?.department
-                    ? ` (${bill.doctor?.specialization || bill.doctor?.department})`
-                    : ""
-                }</div>
-              <div><strong>Date:</strong> ${bill.date ? new Date(bill.date).toLocaleDateString() : ""}</div>
-              <div><strong>Payment:</strong> ${bill.paymentMethod || ""}</div>
-              ${prevPaidHtml}
-              <div><strong>Total Paid Amount:</strong> ${Number(bill.paidAmount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
-              ${todayPaymentHtml || paymentBreakdownHtml}
-              <div><strong>Balance:</strong> ${(Number(bill.amount || 0) - Number(bill.paidAmount || 0)).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
+            <div class="invoice-badge">
+              <div class="invoice-title">Invoice</div>
+              <div class="invoice-num">#${bill.invoiceNumber || "N/A"}</div>
+              <div class="invoice-date">Date: ${bill.date ? new Date(bill.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN")}</div>
             </div>
-            <table role="table" aria-label="services">
-              <thead>
-                <tr><th>Service</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Price</th><th style="text-align:right;">Total</th></tr>
-              </thead>
-              <tbody>
-                ${servicesHtml}
-              </tbody>
-            </table>
-            <div class="total">Total Amount: ${Number(bill.amount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
-            <div class="total">Paid: ${Number(bill.paidAmount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
-            <div class="total">Balance: ${(Number(bill.amount || 0) - Number(bill.paidAmount || 0)).toLocaleString("en-IN", { style: "currency", currency: "INR" })}</div>
-            <script>
-              window.onload=function(){ window.print(); setTimeout(()=>window.close(), 300); }
-            </script>
-          </body>
-        </html>
-      `;
-      const printWindow = window.open("", "_blank");
-      printWindow.document.write(content);
-      printWindow.document.close();
-    } catch (err) {
-      console.error("Error printing bill:", err);
-    }
-  };
+          </div>
+
+          <!-- PATIENT & DOCTOR DETAILS -->
+          <div class="details-grid">
+            <div class="info-block">
+              <div class="info-block-title">Patient Details</div>
+              <div class="info-row"><span class="label">Name:</span> <span class="val">${bill.patientName || bill.patient?.name || "N/A"}</span></div>
+              <div class="info-row"><span class="label">Contact:</span> <span class="val">${bill.contact || bill.contactNumber || "N/A"}</span></div>
+            </div>
+            <div class="info-block">
+              <div class="info-block-title">Clinical Info</div>
+              <div class="info-row"><span class="label">Doctor:</span> <span class="val">${bill.doctor?.name || "N/A"}</span></div>
+              ${
+                bill.doctor?.specialization || bill.doctor?.department
+                  ? `<div class="info-row"><span class="label">Dept:</span> <span class="val">${bill.doctor?.specialization || bill.doctor?.department}</span></div>`
+                  : ""
+              }
+              <div class="info-row"><span class="label">Mode:</span> <span class="val">${bill.paymentMethod || "Cash"}</span></div>
+            </div>
+          </div>
+
+          <!-- SERVICES TABLE -->
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left;">Service / Item</th>
+                <th style="text-align: center; width: 80px;">Qty</th>
+                <th style="text-align: right; width: 120px;">Unit Price</th>
+                <th style="text-align: right; width: 120px;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${servicesHtml || `<tr><td colSpan="4" style="text-align:center; padding: 16px; color: #94a3b8;">No services specified</td></tr>`}
+            </tbody>
+          </table>
+
+          <!-- SUMMARY SECTION -->
+          <div class="summary-section">
+            <div class="payment-notes">
+              <div class="info-block-title" style="margin-bottom: 4px;">Payment History</div>
+              ${prevPaidHtml}
+              ${todayPaymentHtml || paymentBreakdownHtml || `<div class="info-row"><span class="label">Total Paid:</span> <span class="val">${totalPaid.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span></div>`}
+            </div>
+
+            <div class="totals-card">
+              <div class="total-row">
+                <span style="color: #64748b;">Subtotal:</span>
+                <span style="font-weight: 600;">${totalAmount.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+              </div>
+              <div class="total-row">
+                <span style="color: #64748b;">Amount Paid:</span>
+                <span style="font-weight: 600; color: #16a34a;">${totalPaid.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+              </div>
+              <div class="total-row grand-total ${balanceDue > 0 ? "balance-due" : ""}">
+                <span>Balance Due:</span>
+                <span>${balanceDue.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FOOTER -->
+          <div class="footer">
+            <p>Thank you for choosing ${settings.clinicName || "our clinic"}. Wish you a speedy recovery!</p>
+            <p style="margin-top:2px;">This is a computer-generated invoice.</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 300);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(content);
+    printWindow.document.close();
+  } catch (err) {
+    console.error("Error printing bill:", err);
+  }
+};
+
+  // Compute stats
+  const totalBilled = bills.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
+  const totalCollected = bills.reduce((sum, b) => sum + (Number(b.paidAmount) || 0), 0);
+  const totalOutstanding = totalBilled - totalCollected;
 
   /* ------------------------ Filtering Logic ---------------------------- */
 
@@ -407,448 +586,502 @@ const BillingPage = () => {
   );
 
   /* ---------------------------- Render -------------------------------- */
-  return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-green-50 to-teal-100 sm:p-6">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6 text-center">
-        <h1 className="text-2xl mt-3 sm:text-3xl md:text-4xl font-extrabold text-gray-800">
-          💰 Billing & Invoicing
-        </h1>
-        <p className="text-gray-600 mt-2 text-sm sm:text-base">
-          Manage patient bills and payments efficiently
-        </p>
-      </div>
+ return (
+    <div className="min-h-screen w-full bg-slate-50/60 p-4 sm:p-6 lg:p-8 text-slate-800">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header Section */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+              <span>💳</span> Billing & Revenue
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Issue patient invoices, record installment collections, and print receipts
+            </p>
+          </div>
 
-      {/* Table & Actions */}
-      <div className="max-w-7xl mx-auto bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-4 sm:p-6">
-        <div
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3 ipad:flex-col"
-        >
-          {/* Title */}
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
-            Billing Records ({bills.length})
-          </h2>
+          <button
+            onClick={() => openBillForm()}
+            className="bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer self-start sm:self-auto"
+          >
+            <PlusCircleIcon className="w-5 h-5" />
+            <span>Generate Invoice</span>
+          </button>
+        </header>
 
-          {/* Search + Add Bill */}
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto ipad:flex-row ipad:items-center ipad:justify-start">
-            <div className="relative w-full sm:w-64">
-              <MagnifyingGlassIcon className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search bills..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none w-full"
-              />
+        {/* Financial Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Invoiced</p>
+              <p className="text-2xl font-bold text-slate-900 mt-0.5">{formatRupees(totalBilled)}</p>
             </div>
+            <div className="p-3 bg-teal-50 text-teal-700 rounded-xl">
+              <ReceiptPercentIcon className="w-6 h-6" />
+            </div>
+          </div>
 
-            <button
-              onClick={() => openBillForm()}
-              className="flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 transition w-full sm:w-auto"
-            >
-              <PlusCircleIcon className="w-5 h-5" />
-              Add Bill
-            </button>
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Collected Paid</p>
+              <p className="text-2xl font-bold text-emerald-700 mt-0.5">{formatRupees(totalCollected)}</p>
+            </div>
+            <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl">
+              <CheckCircleIcon className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Balance Due</p>
+              <p className="text-2xl font-bold text-amber-600 mt-0.5">{formatRupees(totalOutstanding)}</p>
+            </div>
+            <div className="p-3 bg-amber-50 text-amber-700 rounded-xl">
+              <ClockIcon className="w-6 h-6" />
+            </div>
           </div>
         </div>
 
+        {/* Billing Table Container */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          {/* Search Controls Bar */}
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="relative w-full sm:w-80">
+              <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <input
+                type="text"
+                placeholder="Search invoice #, patient, status..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600 transition"
+              />
+            </div>
 
-        {/* Responsive View */}
-        {/* ===== Desktop/Table View ===== */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg">
-            <thead className="bg-gray-50">
-                <tr className="text-gray-700 uppercase text-sm font-semibold">
-                <th className="px-4 py-3">Invoice #</th>
-                <th className="px-4 py-3">Patient</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Amount</th>
-                <th className="px-4 py-3">Paid</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredBills.map((bill) => (
-                <tr key={bill._id} className="hover:bg-purple-50 transition">
-                  <td className="px-4 py-3">{bill.invoiceNumber}</td>
-                  <td className="px-4 py-3">{bill.patient?.name || ""}</td>
-                  <td className="px-4 py-3">
-                    {bill.date ? new Date(bill.date).toLocaleDateString() : ""}
-                  </td>
-                  <td className="px-4 py-3 font-medium">
-                    {formatRupees(bill.amount || 0)}
-                  </td>
-                  <td className="px-4 py-3 font-medium">
-                    {formatRupees(bill.paidAmount || 0)}
-                  </td>
-                  <td className="px-4 py-3">
+            <p className="text-xs text-slate-400 self-end sm:self-center">
+              Showing <span className="font-semibold text-slate-700">{filteredBills.length}</span> invoices
+            </p>
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50/80">
+                <tr>
+                  {["Invoice #", "Patient", "Date", "Total", "Paid", "Balance", "Status", "Actions"].map((header) => (
+                    <th
+                      key={header}
+                      className="px-6 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider"
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredBills.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center py-10 text-xs sm:text-sm text-slate-400">
+                      {isLoadingBills ? "Loading bills..." : "No billing records found."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredBills.map((bill) => {
+                    const balance = (Number(bill.amount) || 0) - (Number(bill.paidAmount) || 0);
+                    return (
+                      <tr key={bill._id} className="hover:bg-slate-50/60 transition">
+                        <td className="px-6 py-4 whitespace-nowrap font-mono text-xs font-bold text-slate-900">
+                          {bill.invoiceNumber}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-xs sm:text-sm font-semibold text-slate-900">{bill.patient?.name || "-"}</p>
+                          <p className="text-[10px] text-slate-400">Dr. {bill.doctor?.name || "N/A"}</p>
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
+                          {bill.date ? new Date(bill.date).toLocaleDateString() : "-"}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-bold text-slate-900">
+                          {formatRupees(bill.amount || 0)}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-semibold text-emerald-700">
+                          {formatRupees(bill.paidAmount || 0)}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-semibold text-slate-600">
+                          {formatRupees(balance)}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => toggleStatus(bill)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase border ${getStatusBadge(
+                              bill.status
+                            )}`}
+                            title="Click to mark full payment"
+                          >
+                            {getStatusIcon(bill.status)}
+                            <span>{bill.status}</span>
+                          </button>
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => viewBillDetails(bill)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 transition"
+                              title="View Details"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openBillForm(bill)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-teal-600 hover:bg-teal-50 transition"
+                              title="Edit / Record Payment"
+                            >
+                              <PencilSquareIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => printBill(bill)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition"
+                              title="Print Receipt"
+                            >
+                              <PrinterIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => confirmDelete(bill._id)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                              title="Delete Invoice"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-slate-100 p-2">
+            {filteredBills.length > 0 ? (
+              filteredBills.map((bill) => (
+                <div key={bill._id} className="p-4 space-y-3 bg-white rounded-xl border border-slate-100 my-2 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-mono text-xs font-bold text-slate-900">#{bill.invoiceNumber}</span>
+                      <p className="text-xs font-semibold text-slate-800 mt-0.5">{bill.patient?.name || "-"}</p>
+                    </div>
+
                     <button
                       onClick={() => toggleStatus(bill)}
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getStatusBadge(
                         bill.status
                       )}`}
                     >
-                      {getStatusIcon(bill.status)}{" "}
-                      <span className="ml-1">{bill.status}</span>
+                      {bill.status}
                     </button>
-                  </td>
-                  <td className="px-4 py-3 flex justify-end gap-2">
-                    <button
-                      onClick={() => openBillForm(bill)}
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      <PencilSquareIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => confirmDelete(bill._id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <TrashIcon className="w-5 h-5" />
-                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-50">
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">Total Invoice</p>
+                      <p className="font-bold text-slate-900">{formatRupees(bill.amount || 0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase">Paid Amount</p>
+                      <p className="font-bold text-emerald-700">{formatRupees(bill.paidAmount || 0)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-50">
                     <button
                       onClick={() => viewBillDetails(bill)}
-                      className="text-gray-700 hover:text-gray-900"
+                      className="px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg"
                     >
-                      <EyeIcon className="w-5 h-5" />
+                      View
+                    </button>
+                    <button
+                      onClick={() => openBillForm(bill)}
+                      className="px-2.5 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 rounded-lg"
+                    >
+                      Edit
                     </button>
                     <button
                       onClick={() => printBill(bill)}
-                      className="text-green-500 hover:text-green-700"
+                      className="px-2.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-lg"
                     >
-                      <PrinterIcon className="w-5 h-5" />
+                      Print
                     </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredBills.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-6 text-center text-gray-500"
-                  >
-                    {isLoadingBills
-                      ? "Loading bills..."
-                      : "No billing records found."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ===== Mobile/iPad Card View ===== */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
-          {filteredBills.length > 0 ? (
-            filteredBills.map((bill) => (
-              <div
-                key={bill._id}
-                className="bg-white border border-gray-200 rounded-2xl p-4 shadow hover:shadow-lg transition"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-gray-800 text-lg">
-                    #{bill.invoiceNumber}
-                  </h3>
-                  <button
-                    onClick={() => toggleStatus(bill)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                      bill.status
-                    )}`}
-                  >
-                    {bill.status}
-                  </button>
+                    <button
+                      onClick={() => confirmDelete(bill._id)}
+                      className="px-2.5 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 rounded-lg"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <p className="text-gray-700 text-sm">
-                  👤 <span className="font-medium">{bill.patient?.name || ""}</span>
-                </p>
-                <p className="text-gray-700 text-sm">
-                  🩺 {bill.doctor?.name || ""} 
-                  <span className="text-gray-500 ml-1">
-                    {bill.doctor?.specialization ? `(${bill.doctor.specialization})` : ""}
-                  </span>
-                </p>
-
-                <p className="text-gray-600 text-sm">
-                  📅 {bill.date ? new Date(bill.date).toLocaleDateString() : ""}
-                </p>
-                <p className="text-gray-800 font-semibold mt-2">
-                  💵 {formatRupees(bill.amount || 0)}
-                </p>
-                <p className="text-gray-700 text-sm mt-1">
-                  ✅ Paid: {formatRupees(bill.paidAmount || 0)}
-                </p>
-                <div className="flex justify-end gap-3 mt-3">
-                  <button
-                    onClick={() => openBillForm(bill)}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    <PencilSquareIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => confirmDelete(bill._id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => viewBillDetails(bill)}
-                    className="text-gray-700 hover:text-gray-900"
-                  >
-                    <EyeIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => printBill(bill)}
-                    className="text-green-500 hover:text-green-700"
-                  >
-                    <PrinterIcon className="w-5 h-5" />
-                  </button>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-xs text-slate-400">
+                {isLoadingBills ? "Loading bills..." : "No billing records found."}
               </div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500">
-              {isLoadingBills ? "Loading bills..." : "No billing records found."}
-            </p>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-
       {/* ======================= MODALS ======================= */}
 
-      {/* Bill Form Modal */}
+      {/* Add / Edit Bill Modal */}
       {showBillForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-2 sm:px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg sm:max-w-xl md:max-w-2xl p-4 sm:p-6 relative 
-                    max-h-[90vh] overflow-y-auto animate-fadeIn">
-            <h3 className="text-xl sm:text-2xl font-bold mb-4 text-gray-800 text-center sm:text-left">
-              {editingBill ? "Edit Bill" : "Add New Bill"}
-            </h3>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h2 className="text-base font-bold text-slate-900">
+                {editingBill ? "Edit Invoice & Payments" : "Generate Patient Invoice"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBillForm(false);
+                  setEditingBill(null);
+                  setPatientSuggestions([]);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
 
             <form onSubmit={saveBill} className="space-y-4">
-              {/* Patient select (store patient ObjectId) */}
-              <div>
-                <select
-                  value={billFormValues.patient || ""}
-                  onChange={(e) => {
-                    const pid = e.target.value;
-                    const p = patients.find((x) => x._id === pid);
-                    setBillFormValues((prev) => ({
-                      ...prev,
-                      patient: pid,
-                      contact: p?.contact || prev.contact || "",
-                      age: p?.age || prev.age || "",
-                      gender: p?.gender || prev.gender || "",
-                    }));
-                    setPatientSuggestions([]);
-                  }}
-                  className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
-                  required
-                >
-                  <option value="">Select patient</option>
-                  {patients.map((p) => (
-                    <option key={p._id} value={p._id}>
-                      {p.name} 
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Select Patient <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={billFormValues.patient || ""}
+                    onChange={(e) => {
+                      const pid = e.target.value;
+                      const p = patients.find((x) => x._id === pid);
+                      setBillFormValues((prev) => ({
+                        ...prev,
+                        patient: pid,
+                        contact: p?.contact || prev.contact || "",
+                        age: p?.age || prev.age || "",
+                        gender: p?.gender || prev.gender || "",
+                      }));
+                      setPatientSuggestions([]);
+                    }}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                    required
+                  >
+                    <option value="">-- Choose Patient --</option>
+                    {patients.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Select Doctor <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={billFormValues.doctor || ""}
+                    onChange={(e) => {
+                      const doc = doctors.find((d) => d._id === e.target.value);
+                      setBillFormValues({
+                        ...billFormValues,
+                        doctor: doc?._id,
+                      });
+                    }}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                    required
+                  >
+                    <option value="">-- Choose Doctor --</option>
+                    {doctors.map((doc) => (
+                      <option key={doc._id} value={doc._id}>
+                        {doc.name} {doc.specialization ? `(${doc.specialization})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Contact Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="10 digit phone"
+                    value={billFormValues.contact || ""}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/\D/g, "");
+                      if (val.length > 10) val = val.slice(0, 10);
+                      setBillFormValues({ ...billFormValues, contact: val });
+                    }}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Invoice Date
+                  </label>
+                  <input
+                    type="date"
+                    value={billFormValues.date || ""}
+                    onChange={(e) => setBillFormValues({ ...billFormValues, date: e.target.value })}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                    required
+                  />
+                </div>
               </div>
 
-
-              {/* Contact */}
-              <input
-                type="text"
-                placeholder="Contact"
-                value={billFormValues.contact || ""}
-                onChange={(e) => {
-                  let val = e.target.value;
-
-                  // ❗ Sirf digits allow
-                  val = val.replace(/\D/g, "");
-
-                  // ❗ Max 10 digits
-                  if (val.length > 10) val = val.slice(0, 10);
-
-                  setBillFormValues({ ...billFormValues, contact: val });
-                }}
-                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
-              />
-
-
-              {/* Date */}
-              <input
-                type="date"
-                value={billFormValues.date || ""}
-                onChange={(e) =>
-                  setBillFormValues({ ...billFormValues, date: e.target.value })
-                }
-                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
-                required
-              />
-
-              {/* Doctor Dropdown (store doctor ObjectId) */}
-              <select
-                value={billFormValues.doctor || ""}
-                onChange={(e) => {
-                  const doc = doctors.find(d => d._id === e.target.value);
-                  setBillFormValues({
-                    ...billFormValues,
-                    doctor: doc?._id,
-                  });
-                }}
-                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
-                required
-              >
-                <option value="">Select Doctor</option>
-                {doctors.map((doc) => (
-                  <option key={doc._id} value={doc._id}>
-                    {doc.name}{doc.specialization ? ` (${doc.specialization})` : ""}
-                  </option>
-                ))}
-              </select>
-
-
-              {/* Payment Method */}
-              <select
-                value={billFormValues.paymentMethod || "Cash"}
-                onChange={(e) =>
-                  setBillFormValues({
-                    ...billFormValues,
-                    paymentMethod: e.target.value,
-                  })
-                }
-                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
-              >
-                <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
-                <option value="Online">Online</option>
-              </select>
-
-              {/* Paid Amount */}
-              {editingBill ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium">Previously Paid</label>
-                    <div className="font-semibold">{formatRupees(Number(editingBill.paidAmount || 0))}</div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Add Payment (Next Payment)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="Enter new payment amount"
-                      value={billFormValues.nextPayment }
-                      onChange={(e) => setBillFormValues({ ...billFormValues, nextPayment: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base mt-1"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Paid Amount"
-                  value={billFormValues.paidAmount }
-                  onChange={(e) =>
-                    setBillFormValues({ ...billFormValues, paidAmount: e.target.value })
-                  }
-                  className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base mt-2"
-                />
-              )}
-
-              {/* Services */}
-              <div>
-                <label className="font-semibold text-gray-700 mb-2 block">
-                  Services
+              {/* Services List */}
+              <div className="border-t border-slate-100 pt-3">
+                <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
+                  Line Items & Medical Services
                 </label>
-                {services.map((s, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Service Name"
-                      value={s.serviceName}
-                      onChange={(e) =>
-                        handleServiceChange(index, "serviceName", e.target.value)
-                      }
-                      className="flex-1 border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
-                    />
-                    <div className="flex gap-2 w-full sm:w-auto">
+                <div className="space-y-2">
+                  {services.map((s, index) => (
+                    <div key={index} className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="Service / Treatment Name"
+                        value={s.serviceName}
+                        onChange={(e) => handleServiceChange(index, "serviceName", e.target.value)}
+                        className="flex-1 px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
                       <input
                         type="number"
                         placeholder="Qty"
                         min="1"
                         value={s.quantity}
-                        onChange={(e) =>
-                          handleServiceChange(index, "quantity", e.target.value)
-                        }
-                        className="w-20 sm:w-16 border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
+                        onChange={(e) => handleServiceChange(index, "quantity", e.target.value)}
+                        className="w-16 px-2 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl text-center outline-none"
                       />
                       <input
                         type="number"
-                        placeholder="Amount"
+                        placeholder="Price"
                         min="0"
                         value={s.price}
-                        onChange={(e) =>
-                          handleServiceChange(index, "price", e.target.value)
-                        }
-                        className="w-24 border border-gray-300 rounded-lg p-2 sm:p-3 text-sm sm:text-base"
+                        onChange={(e) => handleServiceChange(index, "price", e.target.value)}
+                        className="w-24 px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       />
                       {services.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeService(index)}
-                          className="text-red-500 hover:text-red-700 font-bold"
+                          className="text-rose-500 hover:text-rose-700 font-bold px-1"
                         >
-                          ×
+                          ✕
                         </button>
                       )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
                 <button
                   type="button"
                   onClick={addService}
-                  className="text-purple-600 hover:text-purple-800 text-sm mt-2"
+                  className="text-teal-600 hover:text-teal-800 text-xs font-semibold mt-2 inline-block cursor-pointer"
                 >
-                  + Add Service
+                  + Add Item
                 </button>
               </div>
 
-              {/* Amount Summary */}
-              <div className="flex justify-between items-center mt-1 text-sm sm:text-base">
-                <div className="text-gray-600">Total</div>
-                <div className="font-semibold">{formatRupees(computeTotal())}</div>
+              {/* Payment Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    Payment Method
+                  </label>
+                  <select
+                    value={billFormValues.paymentMethod || "Cash"}
+                    onChange={(e) => setBillFormValues({ ...billFormValues, paymentMethod: e.target.value })}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="Online">Online / UPI</option>
+                  </select>
+                </div>
+
+                <div>
+                  {editingBill ? (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Record New Payment
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Enter payment amount"
+                        value={billFormValues.nextPayment}
+                        onChange={(e) => setBillFormValues({ ...billFormValues, nextPayment: e.target.value })}
+                        className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Initial Paid Amount
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={billFormValues.paidAmount}
+                        onChange={(e) => setBillFormValues({ ...billFormValues, paidAmount: e.target.value })}
+                        className="w-full px-3.5 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-600"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex justify-between items-center mt-1 text-sm sm:text-base">
-                <div className="text-gray-600">Paid</div>
-                <div className="font-semibold">{formatRupees(
-                  editingBill
-                    ? (Number(editingBill.paidAmount ) + Number(billFormValues.nextPayment ))
-                    : Number(billFormValues.paidAmount )
-                )}</div>
+              {/* Financial Calculation Box */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Grand Total:</span>
+                  <span className="font-bold text-slate-900">{formatRupees(computeTotal())}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Total Paid:</span>
+                  <span className="font-bold text-emerald-700">
+                    {formatRupees(
+                      editingBill
+                        ? Number(editingBill.paidAmount || 0) + Number(billFormValues.nextPayment || 0)
+                        : Number(billFormValues.paidAmount || 0)
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600 pt-1 border-t border-slate-200/60">
+                  <span>Remaining Balance:</span>
+                  <span className="font-bold text-amber-700">
+                    {formatRupees(
+                      computeTotal() -
+                        (editingBill
+                          ? Number(editingBill.paidAmount || 0) + Number(billFormValues.nextPayment || 0)
+                          : Number(billFormValues.paidAmount || 0))
+                    )}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex justify-between items-center mt-1 text-sm sm:text-base">
-                <div className="text-gray-600">Balance</div>
-                <div className="font-semibold">{formatRupees(
-                  computeTotal() - (
-                    editingBill
-                      ? (Number(editingBill.paidAmount ) + Number(billFormValues.nextPayment ))
-                      : Number(billFormValues.paidAmount )
-                  )
-                )}</div>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-4">
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -856,15 +1089,16 @@ const BillingPage = () => {
                     setEditingBill(null);
                     setPatientSuggestions([]);
                   }}
-                  className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 text-sm sm:text-base"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700 transition"
                 >
-                  {isSaving ? "Saving..." : editingBill ? "Update" : "Save"}
+                  {isSaving ? "Saving..." : editingBill ? "Update Invoice" : "Save Invoice"}
                 </button>
               </div>
             </form>
@@ -874,139 +1108,138 @@ const BillingPage = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80 text-center">
-            
-            <p className="mb-4">
-              Are you sure you want to delete this bill?
-            </p>
-            <div className="flex justify-center gap-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-xl border border-slate-100 space-y-4">
+            <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+              <TrashIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Delete Invoice Record?</h3>
+              <p className="text-xs text-slate-500 mt-1">This action cannot be reversed.</p>
+            </div>
+            <div className="flex justify-center gap-2 pt-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteBillHandler}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition"
               >
-                Delete
+                Delete Invoice
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirm Full Payment Modal */}
+      {/* Full Payment Confirmation Modal */}
       {showFullPaymentModal && fullPaymentBill && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 px-3 sm:px-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-6 w-full max-w-xs sm:max-w-sm animate-fadeIn text-center">
-            <h3 className="text-lg sm:text-xl font-semibold mb-3 text-gray-800">Confirm Full Payment</h3>
-            <p className="text-gray-600 mb-4 text-sm sm:text-base">
-              You're about to mark invoice <strong>{fullPaymentBill.invoiceNumber}</strong> as <strong>Paid</strong>.
-            </p>
-            <p className="text-gray-700 mb-3">
-              Patient: <strong>{fullPaymentBill.patient?.name || "-"}</strong>
-            </p>
-            <div className="mb-3">
-              <label className="block text-sm text-gray-600">Amount to record as Paid</label>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-xl border border-slate-100 space-y-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircleIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Settle Full Payment</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Mark invoice <strong>#{fullPaymentBill.invoiceNumber}</strong> as Paid.
+              </p>
+            </div>
+
+            <div className="text-left bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
+              <label className="block font-semibold text-slate-700 mb-1">Final Amount Collected</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                value={fullPaymentAmount }
-                onChange={(e) => setFullPaymentAmount(Number(e.target.value ))}
-                className="mt-2 w-full px-3 py-2 border rounded-lg"
+                value={fullPaymentAmount}
+                onChange={(e) => setFullPaymentAmount(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg outline-none font-bold"
               />
             </div>
-            <div className="flex justify-center gap-3">
+
+            <div className="flex justify-center gap-2 pt-2">
               <button
-                onClick={() => { setShowFullPaymentModal(false); setFullPaymentBill(null); }}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                onClick={() => {
+                  setShowFullPaymentModal(false);
+                  setFullPaymentBill(null);
+                }}
                 disabled={isProcessingFullPayment}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmFullPayment}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 disabled={isProcessingFullPayment}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition"
               >
-                {isProcessingFullPayment ? "Processing..." : "Mark as Paid"}
+                {isProcessingFullPayment ? "Saving..." : "Confirm Full Payment"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* View Bill Modal */}
+      {/* View Bill Details Modal */}
       {selectedBill && (
-        <div className="fixed inset-0  flex items-center justify-center z-50 px-2 sm:px-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md sm:max-w-lg p-5 sm:p-6 my-6 animate-fadeIn">
-            <h3 className="text-xl sm:text-2xl font-bold mb-4 text-gray-800 text-center sm:text-left">
-              Invoice Details
-            </h3>
-            <div className="space-y-2 text-sm sm:text-base">
-              <p>
-                <strong>Invoice #:</strong> {selectedBill.invoiceNumber}
-              </p>
-              <p>
-                <strong>Patient:</strong> {selectedBill.patient?.name || ""}
-              </p>
-              <p>
-  <strong>Contact:</strong>{" "}
-  {(selectedBill.contact || selectedBill.contactNumber || "N/A")
-    .toString()
-    .slice(0, 10)}
-</p>
-
-              <p>
-                <strong>Doctor:</strong> {selectedBill.doctor?.name || ""}
-                {selectedBill.doctor?.specialization && (
-                  <span className="text-gray-600"> ({selectedBill.doctor.specialization})</span>
-                )}
-              </p>
-
-              <p>
-                <strong>Date:</strong>{" "}
-                {selectedBill.date
-                  ? new Date(selectedBill.date).toLocaleDateString()
-                  : ""}
-              </p>
-              <p>
-                <strong>Services:</strong> {selectedBill.services}
-              </p>
-              <p>
-                <strong>Amount:</strong> {formatRupees(selectedBill.amount || 0)}
-              </p>
-              <p>
-                <strong>Paid:</strong> {formatRupees(selectedBill.paidAmount || 0)}
-              </p>
-              {selectedBill.lastPayment && (
-                <>
-                  <p>
-                    <strong>Previously Paid:</strong> {formatRupees(selectedBill.lastPayment.previousPaid || 0)}
-                  </p>
-                  <p>
-                    <strong>Today's Payment:</strong> {formatRupees(selectedBill.lastPayment.amount || 0)} on {new Date(selectedBill.lastPayment.date).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <strong>Next Payment Due:</strong> {formatRupees((selectedBill.amount || 0) - (selectedBill.paidAmount || 0))}
-                  </p>
-                </>
-              )}
-              <p>
-                <strong>Balance:</strong> {formatRupees((selectedBill.amount || 0) - (selectedBill.paidAmount || 0))}
-              </p>
-              <p>
-                <strong>Status:</strong> {selectedBill.status}
-              </p>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>📄</span> Invoice Summary #{selectedBill.invoiceNumber}
+              </h3>
+              <button onClick={closeBillDetails} className="text-slate-400 hover:text-slate-600 text-sm">
+                ✕
+              </button>
             </div>
-            <div className="flex justify-end mt-5">
+
+            <div className="space-y-2 text-xs text-slate-700">
+              <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase">Patient</span>
+                <span className="font-bold text-slate-900">{selectedBill.patient?.name || "-"}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase">Contact</span>
+                <span className="font-semibold text-slate-800">
+                  {(selectedBill.contact || selectedBill.contactNumber || "N/A").toString().slice(0, 10)}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase">Doctor</span>
+                <span className="font-semibold text-slate-800">Dr. {selectedBill.doctor?.name || "-"}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase">Date</span>
+                <span>{selectedBill.date ? new Date(selectedBill.date).toLocaleDateString() : "-"}</span>
+              </div>
+              <div className="border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase block mb-1">Services</span>
+                <p className="bg-slate-50 p-2 rounded-lg text-slate-800">{selectedBill.services || "N/A"}</p>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase">Total Amount</span>
+                <span className="font-bold text-slate-900">{formatRupees(selectedBill.amount || 0)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                <span className="text-slate-400 font-semibold uppercase">Total Paid</span>
+                <span className="font-bold text-emerald-700">{formatRupees(selectedBill.paidAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between pt-1">
+                <span className="text-slate-400 font-semibold uppercase">Balance Due</span>
+                <span className="font-bold text-amber-700">
+                  {formatRupees((selectedBill.amount || 0) - (selectedBill.paidAmount || 0))}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100">
               <button
                 onClick={closeBillDetails}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
               >
                 Close
               </button>
@@ -1014,24 +1247,6 @@ const BillingPage = () => {
           </div>
         </div>
       )}
-  <style>{`
-  @media (min-width: 768px) and (max-width: 1180px) {
-    .ipad\\:flex-col {
-      flex-direction: column !important;
-    }
-    .ipad\\:flex-row {
-      flex-direction: row !important;
-    }
-    .ipad\\:items-center {
-      align-items: center !important;
-    }
-    .ipad\\:justify-start {
-      justify-content: flex-start !important;
-    }
-  }
-`}</style>
-
-
     </div>
   );
 };
